@@ -1,7 +1,11 @@
-<!DOCTYPE html><html lang="zh-TW"><head>
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>美味便當線上預購系統</title>
+    <!-- 1. 引入 Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
         :root {
             --primary-color: #e67e22;
@@ -35,7 +39,6 @@
             margin-bottom: 20px;
             font-size: 1.1em;
         }
-        /* 訂購須知樣式 */
         .notice-box {
             background-color: #fff5f5;
             border-left: 4px solid var(--danger-color);
@@ -152,11 +155,17 @@
         .submit-btn:hover {
             background: #d35400;
         }
-    </style></head><body><div class="container">
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+<div class="container">
     <h1>🍱 每日精選便當預購</h1>
     <div class="subtitle">均一價 120 元 | 請於指定時間取餐</div>
 
-    <!-- ⚠️ 訂購須知與取消條款管制公告 -->
     <div class="notice-box">
         <p>⚠️ 訂購須知：</p>
         <p>1. 本營運採精準食材準備，【取貨前 3 天（含取貨當日）】恕不接受取消或修改訂單。</p>
@@ -164,7 +173,6 @@
     </div>
 
     <form id="orderForm" onsubmit="submitOrder(event)">
-        <!-- 基本資料 -->
         <div class="form-group full-width">
             <label for="deptCode">部門代號 * (限5碼，如：RD102)</label>
             <input type="text" id="deptCode" required maxlength="5" pattern="^[a-zA-Z0-9]{5}$" placeholder="請輸入5碼部門代號" title="請輸入剛好5碼的英文或數字" oninput="this.value = this.value.toUpperCase()">
@@ -182,13 +190,11 @@
             </div>
         </div>
 
-        <!-- 日期與時間欄位群組（已移除月份） -->
         <div class="form-row">
             <div class="form-group" style="flex: 2;">
                 <label for="orderDay">取貨日期 *</label>
                 <select id="orderDay" required>
                     <option value="" disabled selected>請選擇日期</option>
-                    <!-- 由 JavaScript 動態生成今天到下個月底的日期 -->
                 </select>
             </div>
 
@@ -202,20 +208,23 @@
             </div>
         </div>
 
-        <!-- 便當款式選擇 -->
         <div class="menu-title">便當款式選擇 (每個 $120)</div>
-        <div id="bentoMenu">
-            <!-- 由 JavaScript 自動生成 9 款便當 -->
-        </div>
+        <div id="bentoMenu"></div>
 
-        <!-- 總金額計算 -->
         <div class="total-section">
             總計金額： <span class="total-price" id="totalPrice">$0</span>
         </div>
 
-        <button type="submit" class="submit-btn">確認提交預購單</button>
-    </form></div><script>
-    // 9款便當清單
+        <button type="submit" id="submitBtn" class="submit-btn">確認提交預購單</button>
+    </form>
+</div>
+
+<script>
+    // 2. 初始化 Supabase 客戶端 (使用您的 API 資訊)
+    const SUPABASE_URL = 'https://yoqlmjbcwoezpxsdpshw.supabase.co';
+    const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InlvcWxtamJjd29lenB4c2Rwc2h3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODQ3MDIzMzcsImV4cCI6MjEwMDI3ODMzN30.Hw_IFftReBMOKsR1c9zsTarIc8RslTF_pg2FIuV1i1o';
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
     const bentos = [
         "滷腿庫", "花瓜嫩雞", "三杯雞", "烤腿排", "照燒雞", 
         "蔥爆肉絲", "洋蔥雞丁", "瓜仔肉", "芝麻燒肉"
@@ -241,16 +250,14 @@
         menuContainer.appendChild(itemDiv);
     });
 
-    // 動態生成可選日期（從今天開始，包含當月與下個月底）
+    // 動態生成日期
     function initDatePicker() {
         const daySelect = document.getElementById('orderDay');
         const currentDate = new Date();
         const weekDays = ['日', '一', '二', '三', '四', '五', '六'];
         
-        // 計算下個月底的最後一天
         const targetDate = new Date(currentDate.getFullYear(), currentDate.getMonth() + 2, 0);
         
-        // 循環生成從今天到下個月底的每一天
         let iterDate = new Date(currentDate);
         while (iterDate <= targetDate) {
             const y = iterDate.getFullYear();
@@ -259,21 +266,15 @@
             const w = weekDays[iterDate.getDay()];
             
             const opt = document.createElement('option');
-            // 儲存格式化的日期字串作為 value
             opt.value = `${y}年${m}月${d}日(週${w})`;
             opt.innerText = `${m}月${d}日 (週${w})`;
             
             daySelect.appendChild(opt);
-            
-            // 往後推一天
             iterDate.setDate(iterDate.getDate() + 1);
         }
     }
-
-    // 初始化執行日期渲染
     initDatePicker();
 
-    // 改變數量的函式
     function changeQty(index, change) {
         const qtyInput = document.getElementById(`qty-${index}`);
         let currentQty = parseInt(qtyInput.value);
@@ -283,7 +284,6 @@
         calculateTotal();
     }
 
-    // 計算總金額
     function calculateTotal() {
         let totalItems = 0;
         bentos.forEach((_, index) => {
@@ -293,23 +293,24 @@
         document.getElementById('totalPrice').innerText = `$${totalMoney}`;
     }
 
-    // 提交表單處理
-    function submitOrder(event) {
+    // 3. 非同步表單提交至 Supabase
+    async function submitOrder(event) {
         event.preventDefault();
         
+        const submitBtn = document.getElementById('submitBtn');
         const deptCode = document.getElementById('deptCode').value.toUpperCase();
         const name = document.getElementById('name').value;
         const phone = document.getElementById('phone').value;
         const orderDay = document.getElementById('orderDay').value;
         const pickupTime = document.getElementById('pickupTime').value;
         
-        let orderDetails = [];
+        let orderItems = [];
         let totalItems = 0;
 
         bentos.forEach((bento, index) => {
             const qty = parseInt(document.getElementById(`qty-${index}`).value);
             if (qty > 0) {
-                orderDetails.push(`${bento} x ${qty}`);
+                orderItems.push({ bento_name: bento, quantity: qty });
                 totalItems += qty;
             }
         });
@@ -319,8 +320,55 @@
             return;
         }
 
-        // 預購單明細
-        const summary = `【新預購訂單確認】\n\n取貨日期：${orderDay}\n取貨時間：${pickupTime}\n部門代號：${deptCode}\n訂購人：${name}\n手機：${phone}\n\n訂購明細：\n${orderDetails.join('\n')}\n\n總金額：$${totalItems * PRICE_PER_BENTO} 元\n\n--------------------\n⚠️ 訂購與取消規範提醒：\n1. 取貨前 3 天內（含當日）不可取消或修改訂單。\n2. 取貨前 3 天之前如需取消，請連繫 Team Pro 專人（電話：403-6734）辦理。`;
-        
-        alert(summary);
-    }</script></body></html>
+        const totalPrice = totalItems * PRICE_PER_BENTO;
+
+        // 鎖定按鈕防止重複送出
+        submitBtn.disabled = true;
+        submitBtn.innerText = "資料處理中...";
+
+        try {
+            // A. 寫入 orders 主表
+            const { data: orderData, error: orderError } = await supabaseClient
+                .from('orders')
+                .insert([{
+                    order_day: orderDay,
+                    pickup_time: pickupTime,
+                    dept_code: deptCode,
+                    name: name,
+                    phone: phone,
+                    total_price: totalPrice,
+                    status: 'pending'
+                }])
+                .select();
+
+            if (orderError) throw orderError;
+
+            const newOrderId = orderData[0].id;
+
+            // B. 寫入 order_items 明細表
+            const itemRecords = orderItems.map(item => ({
+                order_id: newOrderId,
+                bento_name: item.bento_name,
+                quantity: item.quantity
+            }));
+
+            const { error: itemsError } = await supabaseClient
+                .from('order_items')
+                .insert(itemRecords);
+
+            if (itemsError) throw itemsError;
+
+            // 成功提示
+            alert("🎉 預購單提交成功！資料已同步儲存至資料庫。");
+            location.reload();
+
+        } catch (err) {
+            console.error('訂單寫入失敗:', err);
+            alert("❌ 訂單送出失敗：" + (err.message || '請檢查網路連線或 RLS 權限'));
+            submitBtn.disabled = false;
+            submitBtn.innerText = "確認提交預購單";
+        }
+    }
+</script>
+</body>
+</html>
