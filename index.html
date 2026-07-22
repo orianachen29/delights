@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Delights - 美味便當線上預購</title>
+    <title>Delights - 美味便當線上預購與查詢</title>
     <!-- 引入 Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <style>
@@ -13,10 +13,9 @@
             --bg-color: #f4f6f7;
             --danger-color: #e74c3c;
             --card-bg: #ffffff;
+            --success-color: #2ecc71;
         }
-        * {
-            box-sizing: border-box;
-        }
+        * { box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
             background-color: var(--bg-color);
@@ -25,7 +24,7 @@
             padding: 15px;
             display: flex;
             justify-content: center;
-            align-items: center;
+            align-items: flex-start;
             min-height: 100vh;
         }
         .container {
@@ -39,9 +38,37 @@
         .header-title {
             text-align: center;
             color: var(--secondary-color);
-            margin: 0 0 5px 0;
+            margin: 0 0 10px 0;
             font-size: 22px;
         }
+
+        /* 頁籤切換 (預購 vs 查詢) */
+        .tab-menu {
+            display: flex;
+            border-bottom: 2px solid #e2e8f0;
+            margin-bottom: 15px;
+        }
+        .tab-btn {
+            flex: 1;
+            padding: 10px;
+            text-align: center;
+            background: none;
+            border: none;
+            font-size: 15px;
+            font-weight: bold;
+            color: #718096;
+            cursor: pointer;
+            border-bottom: 3px solid transparent;
+            transition: 0.2s;
+        }
+        .tab-btn.active {
+            color: var(--primary-color);
+            border-bottom-color: var(--primary-color);
+        }
+
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+
         .notice-box {
             background-color: #fff5f5;
             border-left: 4px solid var(--danger-color);
@@ -52,7 +79,7 @@
             color: #c0392b;
             line-height: 1.4;
         }
-        
+
         /* 表單區域布局 */
         .form-section {
             display: grid;
@@ -76,14 +103,13 @@
             border: 1px solid #ccc;
             border-radius: 6px;
             font-size: 14px;
-            transition: border-color 0.2s;
         }
         input:focus, select:focus {
             outline: none;
             border-color: var(--primary-color);
         }
 
-        /* 便當卡片九宮格區域 */
+        /* 便當網格 */
         .section-title {
             font-size: 15px;
             font-weight: bold;
@@ -109,10 +135,6 @@
             display: flex;
             flex-direction: column;
             justify-content: space-between;
-            transition: transform 0.1s, border-color 0.2s;
-        }
-        .bento-card:hover {
-            border-color: var(--primary-color);
         }
         .bento-info {
             display: flex;
@@ -120,18 +142,9 @@
             align-items: center;
             margin-bottom: 8px;
         }
-        .bento-name {
-            font-size: 15px;
-            font-weight: bold;
-            color: #2d3748;
-        }
-        .bento-price {
-            color: var(--danger-color);
-            font-size: 13px;
-            font-weight: bold;
-        }
-        
-        /* 數量控制器 */
+        .bento-name { font-size: 15px; font-weight: bold; }
+        .bento-price { color: var(--danger-color); font-size: 13px; font-weight: bold; }
+
         .qty-control {
             display: flex;
             align-items: center;
@@ -139,7 +152,6 @@
             background: #fff;
             border: 1px solid #cbd5e0;
             border-radius: 4px;
-            overflow: hidden;
         }
         .btn-qty {
             background: #edf2f7;
@@ -149,21 +161,15 @@
             font-size: 16px;
             font-weight: bold;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        .btn-qty:hover { background: #e2e8f0; }
         .qty-input {
             width: 100%;
             text-align: center;
             border: none;
             font-size: 14px;
             font-weight: bold;
-            color: #2d3748;
-            padding: 0;
         }
-        .qty-input:focus { outline: none; }
 
-        /* 底部結算與按鈕 */
         .bottom-bar {
             display: flex;
             justify-content: space-between;
@@ -173,15 +179,7 @@
             border-radius: 8px;
             border: 1px solid #e2e8f0;
         }
-        .total-text {
-            font-size: 16px;
-            font-weight: bold;
-        }
-        .total-price {
-            color: var(--danger-color);
-            font-size: 20px;
-            margin-left: 5px;
-        }
+        .total-price { color: var(--danger-color); font-size: 20px; font-weight: bold; }
         .submit-btn {
             background: var(--primary-color);
             color: white;
@@ -191,78 +189,130 @@
             font-weight: bold;
             border-radius: 6px;
             cursor: pointer;
-            transition: background 0.2s;
         }
-        .submit-btn:hover { background: #d35400; }
-        .submit-btn:disabled { background: #a0aec0; cursor: not-allowed; }
 
-        /* 手機版適應 */
+        /* 查詢區塊樣式 */
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        .btn-search {
+            background: var(--secondary-color);
+            color: white;
+            border: none;
+            padding: 8px 18px;
+            border-radius: 6px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .order-card {
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 15px;
+            margin-bottom: 12px;
+            background: #fafafa;
+        }
+        .order-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px dashed #ccc;
+            padding-bottom: 8px;
+            margin-bottom: 8px;
+        }
+        .order-sn { font-weight: bold; color: var(--primary-color); }
+        .badge {
+            padding: 3px 8px;
+            border-radius: 10px;
+            font-size: 12px;
+            font-weight: bold;
+        }
+        .badge-pending { background: #fef9e7; color: #f39c12; }
+        .badge-completed { background: #e8f8f5; color: #2ecc71; }
+        .badge-cancelled { background: #fadbd8; color: #e74c3c; }
+
         @media (max-width: 640px) {
-            body { padding: 5px; }
-            .form-section { grid-template-columns: repeat(2, 1fr); }
-            .menu-grid { grid-template-columns: repeat(2, 1fr); }
+            .form-section, .menu-grid { grid-template-columns: repeat(2, 1fr); }
         }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2 class="header-title">🍱 Delights 美味便當線上預購</h2>
+    <h2 class="header-title">🍱 Delights 美味便當系統</h2>
 
-    <div class="notice-box">
-        ⚠️ <strong>訂購須知：</strong>均一價 $120 元。採精準食材準備，【取貨前 3 天】恕不接受取消或修改。急單處理請洽專線：403-6734。
+    <!-- 頂部頁籤切換 -->
+    <div class="tab-menu">
+        <button class="tab-btn active" onclick="switchTab('orderTab')">✍️ 線上預購</button>
+        <button class="tab-btn" onclick="switchTab('searchTab')">🔍 訂單查詢</button>
     </div>
 
-    <form id="orderForm" novalidate>
-        <!-- 基本資料輸入區 -->
-        <div class="form-section">
-            <div class="form-group">
-                <label for="deptCode">部門代號 *</label>
-                <input type="text" id="deptCode" maxlength="5" placeholder="5碼 (如: RD102)" oninput="this.value = this.value.toUpperCase()">
-            </div>
-
-            <div class="form-group">
-                <label for="name">訂購人姓名 *</label>
-                <input type="text" id="name" maxlength="4" placeholder="中文至多4碼">
-            </div>
-
-            <div class="form-group">
-                <label for="phone">手機電話 *</label>
-                <input type="tel" id="phone" maxlength="10" placeholder="數字10碼 (如: 0912345678)">
-            </div>
-
-            <div class="form-group">
-                <label for="pickupTime">取貨時間 *</label>
-                <select id="pickupTime">
-                    <option value="" disabled selected>請選擇時間</option>
-                    <option value="11:30">11:30</option>
-                    <option value="12:30">12:30</option>
-                </select>
-            </div>
-
-            <div class="form-group" style="grid-column: span 4;">
-                <label for="orderDay">取貨日期 *</label>
-                <select id="orderDay">
-                    <option value="" disabled selected>請選擇日期</option>
-                </select>
-            </div>
+    <!-- 頁籤一：線上預購 -->
+    <div id="orderTab" class="tab-content active">
+        <div class="notice-box">
+            ⚠️ <strong>訂購須知：</strong>均一價 $120 元。採精準食材準備，【取貨前 3 天】恕不接受取消或修改。急單或需刪單修改請洽專線：403-6734。
         </div>
 
-        <!-- 便當網格卡片區 -->
-        <div class="section-title">
-            <span>便當款式選擇</span>
-            <span style="font-size:12px; color:#718096; font-weight:normal;">(可點選 +/- 或直接手動輸入數量)</span>
-        </div>
-        <div id="bentoMenu" class="menu-grid"></div>
+        <form id="orderForm" novalidate>
+            <div class="form-section">
+                <div class="form-group">
+                    <label for="deptCode">部門代號 *</label>
+                    <input type="text" id="deptCode" maxlength="5" placeholder="5碼 (如: RD102)" oninput="this.value = this.value.toUpperCase()">
+                </div>
 
-        <!-- 結算欄位 -->
-        <div class="bottom-bar">
-            <div class="total-text">
-                總計金額：<span class="total-price" id="totalPrice">$0</span>
+                <div class="form-group">
+                    <label for="name">訂購人姓名 *</label>
+                    <input type="text" id="name" maxlength="4" placeholder="中文至多4碼">
+                </div>
+
+                <div class="form-group">
+                    <label for="phone">手機電話 *</label>
+                    <input type="tel" id="phone" maxlength="10" placeholder="數字10碼">
+                </div>
+
+                <div class="form-group">
+                    <label for="pickupTime">取貨時間 *</label>
+                    <select id="pickupTime">
+                        <option value="" disabled selected>請選擇時間</option>
+                        <option value="11:30">11:30</option>
+                        <option value="12:30">12:30</option>
+                    </select>
+                </div>
+
+                <div class="form-group" style="grid-column: span 4;">
+                    <label for="orderDay">取貨日期 *</label>
+                    <select id="orderDay">
+                        <option value="" disabled selected>請選擇日期</option>
+                    </select>
+                </div>
             </div>
-            <button type="submit" id="submitBtn" class="submit-btn">確認提交預購單</button>
+
+            <div class="section-title">
+                <span>便當款式選擇</span>
+                <span style="font-size:12px; color:#718096; font-weight:normal;">(可點選 +/- 或直接手動輸入數量)</span>
+            </div>
+            <div id="bentoMenu" class="menu-grid"></div>
+
+            <div class="bottom-bar">
+                <div style="font-size:16px; font-weight:bold;">
+                    總計金額：<span class="total-price" id="totalPrice">$0</span>
+                </div>
+                <button type="submit" id="submitBtn" class="submit-btn">確認提交預購單</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- 頁籤二：訂單查詢（僅供檢視，無法刪單） -->
+    <div id="searchTab" class="tab-content">
+        <div class="search-box">
+            <input type="text" id="searchInput" placeholder="請輸入『手機號碼』或『訂單流水號』..." style="flex:1;">
+            <button class="btn-search" onclick="searchOrders()">查詢訂單</button>
         </div>
-    </form>
+        <div id="searchResults">
+            <p style="text-align:center; color:#718096;">請輸入手機號碼或流水號進行查詢。</p>
+        </div>
+    </div>
 </div>
 
 <script>
@@ -272,14 +322,33 @@
     
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-    const bentos = [
-        "滷腿庫", "花瓜嫩雞", "三杯雞", 
-        "烤腿排", "照燒雞", "蔥爆肉絲", 
-        "洋蔥雞丁", "瓜仔肉", "芝麻燒肉"
-    ];
+    const bentos = ["滷腿庫", "花瓜嫩雞", "三杯雞", "烤腿排", "照燒雞", "蔥爆肉絲", "洋蔥雞丁", "瓜仔肉", "芝麻燒肉"];
     const PRICE_PER_BENTO = 120;
 
-    // 2. 渲染便當九宮格卡片
+    // 頁籤切換
+    function switchTab(tabId) {
+        document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+        document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        
+        if(tabId === 'orderTab') {
+            document.querySelectorAll('.tab-btn')[0].classList.add('active');
+        } else {
+            document.querySelectorAll('.tab-btn')[1].classList.add('active');
+        }
+        document.getElementById(tabId).classList.add('active');
+    }
+
+    // 產生專屬流水號 (格式：DL + 年月日 + 4位隨機碼，如 DL20260722-A8F2)
+    function generateOrderSN() {
+        const date = new Date();
+        const yyyy = date.getFullYear();
+        const mm = String(date.getMonth() + 1).padStart(2, '0');
+        const dd = String(date.getDate()).padStart(2, '0');
+        const randomCode = Math.random().toString(36).substring(2, 6).toUpperCase();
+        return `DL${yyyy}${mm}${dd}-${randomCode}`;
+    }
+
+    // 渲染便當卡片
     const menuContainer = document.getElementById('bentoMenu');
     bentos.forEach((bento, index) => {
         const card = document.createElement('div');
@@ -298,7 +367,7 @@
         menuContainer.appendChild(card);
     });
 
-    // 3. 渲染取貨日期下拉選單
+    // 渲染取貨日期選單
     function initDatePicker() {
         const daySelect = document.getElementById('orderDay');
         const currentDate = new Date();
@@ -321,7 +390,6 @@
     }
     initDatePicker();
 
-    // 4. 數量調整與手輸控制
     function changeQty(index, change) {
         const qtyInput = document.getElementById(`qty-${index}`);
         let currentQty = parseInt(qtyInput.value) || 0;
@@ -332,31 +400,24 @@
     }
 
     function validateQtyInput(input) {
-        // 只允許輸入數字
         input.value = input.value.replace(/[^0-9]/g, '');
         calculateTotal();
     }
 
     function formatQtyInput(input) {
-        if (input.value === '' || parseInt(input.value) < 0) {
-            input.value = '0';
-        } else {
-            input.value = parseInt(input.value).toString();
-        }
+        if (input.value === '' || parseInt(input.value) < 0) input.value = '0';
+        else input.value = parseInt(input.value).toString();
         calculateTotal();
     }
 
     function calculateTotal() {
         let totalItems = 0;
         bentos.forEach((_, index) => {
-            const val = parseInt(document.getElementById(`qty-${index}`).value) || 0;
-            totalItems += val;
+            totalItems += parseInt(document.getElementById(`qty-${index}`).value) || 0;
         });
-        const totalMoney = totalItems * PRICE_PER_BENTO;
-        document.getElementById('totalPrice').innerText = `$${totalMoney.toLocaleString()}`;
+        document.getElementById('totalPrice').innerText = `$${(totalItems * PRICE_PER_BENTO).toLocaleString()}`;
     }
 
-    // 5. 嚴格欄位檢核邏輯
     function validateForm() {
         const deptCode = document.getElementById('deptCode').value.trim();
         const name = document.getElementById('name').value.trim();
@@ -364,44 +425,28 @@
         const orderDay = document.getElementById('orderDay').value;
         const pickupTime = document.getElementById('pickupTime').value;
 
-        // (1) 部門代號限定5碼(英文或數字)
-        const deptRegex = /^[a-zA-Z0-9]{5}$/;
-        if (!deptRegex.test(deptCode)) {
+        if (!/^[a-zA-Z0-9]{5}$/.test(deptCode)) {
             alert("❌ 欄位格式錯誤：部門代號限定5碼(英文或數字)");
-            document.getElementById('deptCode').focus();
             return false;
         }
-
-        // (2) 訂購人姓名為中文,至多4碼
-        const nameRegex = /^[\u4e00-\u9fa5]{1,4}$/;
-        if (!nameRegex.test(name)) {
+        if (!/^[\u4e00-\u9fa5]{1,4}$/.test(name)) {
             alert("❌ 欄位格式錯誤：訂購人姓名為中文，至多4碼");
-            document.getElementById('name').focus();
             return false;
         }
-
-        // (3) 手機電話限數字10碼
-        const phoneRegex = /^\d{10}$/;
-        if (!phoneRegex.test(phone)) {
+        if (!/^\d{10}$/.test(phone)) {
             alert("❌ 欄位格式錯誤：手機電話限數字10碼");
-            document.getElementById('phone').focus();
             return false;
         }
-
-        // (4) 取貨日期汲取貨時間採下拉選單
         if (!orderDay || !pickupTime) {
             alert("❌ 請選擇正確的取貨日期與取貨時間！");
             return false;
         }
-
         return true;
     }
 
-    // 6. 表單提交處理
+    // 提交預購單
     document.getElementById('orderForm').addEventListener('submit', async function(event) {
         event.preventDefault();
-
-        // 執行格式檢核
         if (!validateForm()) return;
 
         const deptCode = document.getElementById('deptCode').value.toUpperCase().trim();
@@ -429,16 +474,18 @@
         }
 
         const totalPrice = totalItems * PRICE_PER_BENTO;
+        const orderSN = generateOrderSN();
 
         const submitBtn = document.getElementById('submitBtn');
         submitBtn.disabled = true;
-        submitBtn.innerText = "連線寫入資料庫中...";
+        submitBtn.innerText = "寫入訂單中...";
 
         try {
-            // A. 寫入 orders 表
+            // 寫入 orders
             const { data: orderData, error: orderError } = await supabaseClient
                 .from('orders')
                 .insert([{
+                    order_sn: orderSN,
                     order_day: orderDay,
                     pickup_time: pickupTime,
                     dept_code: deptCode,
@@ -453,7 +500,7 @@
 
             const newOrderId = orderData[0].id;
 
-            // B. 寫入 order_items 明細表
+            // 寫入 order_items
             const itemRecords = orderItems.map(item => ({
                 order_id: newOrderId,
                 bento_name: item.bento_name,
@@ -466,20 +513,17 @@
 
             if (itemsError) throw new Error("Order_items 寫入失敗：" + itemsError.message);
 
-            // C. 成功帶出訂購資訊及送單成功字眼
-            const successMsg = 
+            alert(
                 `🎉 訂單送單成功！\n\n` +
-                `【訂購資訊摘要】\n` +
-                `-----------------------------\n` +
+                `【訂單流水編號】：${orderSN}\n` +
+                `(提示：您可憑此流水號或手機號碼至「訂單查詢」查看狀態；如需修改或刪單請洽後台管理員)\n\n` +
                 `訂購人：${name} (${deptCode})\n` +
-                `聯絡電話：${phone}\n` +
                 `取貨時間：${orderDay} ${pickupTime}\n` +
                 `-----------------------------\n` +
                 `【訂購品項】\n${summaryDetails}` +
                 `-----------------------------\n` +
-                `總計金額：$${totalPrice} 元`;
-
-            alert(successMsg);
+                `總金額：$${totalPrice} 元`
+            );
             location.reload();
 
         } catch (err) {
@@ -488,6 +532,68 @@
             submitBtn.innerText = "確認提交預購單";
         }
     });
+
+    // 訂單查詢功能 (純檢視，不包含任何刪除與修改權限)
+    async function searchOrders() {
+        const query = document.getElementById('searchInput').value.trim();
+        const resultsDiv = document.getElementById('searchResults');
+
+        if (!query) {
+            alert("請輸入手機號碼或流水號進行查詢！");
+            return;
+        }
+
+        resultsDiv.innerHTML = '<p style="text-align:center; color:#718096;">查詢中，請稍候...</p>';
+
+        try {
+            const { data: orders, error } = await supabaseClient
+                .from('orders')
+                .select(`*, order_items (bento_name, quantity)`)
+                .or(`phone.eq.${query},order_sn.eq.${query}`)
+                .order('created_at', { ascending: false });
+
+            if (error) throw error;
+
+            if (!orders || orders.length === 0) {
+                resultsDiv.innerHTML = '<p style="text-align:center; color:#e74c3c;">查無相關訂單資料，請確認輸入是否正確。</p>';
+                return;
+            }
+
+            let html = '';
+            orders.forEach(o => {
+                let badgeClass = 'badge-pending';
+                let statusText = '待處理';
+                if(o.status === 'completed') { badgeClass = 'badge-completed'; statusText = '已完成'; }
+                if(o.status === 'cancelled') { badgeClass = 'badge-cancelled'; statusText = '已取消'; }
+
+                let itemsText = '';
+                if (o.order_items) {
+                    o.order_items.forEach(item => {
+                        itemsText += `<div>• ${item.bento_name} × ${item.quantity}</div>`;
+                    });
+                }
+
+                html += `
+                    <div class="order-card">
+                        <div class="order-header">
+                            <span class="order-sn">流水號：${o.order_sn || '無流水號'}</span>
+                            <span class="badge ${badgeClass}">${statusText}</span>
+                        </div>
+                        <div style="font-size:14px; line-height:1.6;">
+                            <div><strong>取貨時間：</strong>${o.order_day} ${o.pickup_time}</div>
+                            <div><strong>訂購人：</strong>[${o.dept_code}] ${o.name} (${o.phone})</div>
+                            <div style="margin-top:5px; background:#fff; padding:8px; border-radius:4px; border:1px solid #edf2f7;">${itemsText}</div>
+                            <div style="text-align:right; font-weight:bold; color:#e74c3c; margin-top:5px;">總金額：$${o.total_price}</div>
+                        </div>
+                    </div>
+                `;
+            });
+            resultsDiv.innerHTML = html;
+
+        } catch (err) {
+            resultsDiv.innerHTML = `<p style="text-align:center; color:#e74c3c;">查詢失敗：${err.message}</p>`;
+        }
+    }
 </script>
 </body>
 </html>
